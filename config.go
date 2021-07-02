@@ -38,7 +38,7 @@ func (c *Config) build() (*zap.Logger, error) {
 		return nil, errors.New("config error")
 	}
 	c.buildArchLogger()
-	opts := c.warpSync()
+	opts := c.wrapSync()
 
 	return c.Config.Build(opts)
 }
@@ -59,7 +59,7 @@ func (c *Config) buildArchLogger() {
 	c.ArchConf.warnLog = c.ArchConf.getLumberjackLogger(c.ArchConf.WarnFileName)
 }
 
-func (c *Config) warpSync() zap.Option {
+func (c *Config) wrapSync() zap.Option {
 	errPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl == zapcore.ErrorLevel && zapcore.ErrorLevel-c.Config.Level.Level() > -1
 	})
