@@ -1,0 +1,19 @@
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.idea/
+.vscode/
+build/
+tmp/
+temp/
+/dist
+
+go.sum
+pipe2alarm.yaml
+pipe2alarm
