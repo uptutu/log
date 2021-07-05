@@ -7,12 +7,22 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+)
+
+type option uint8
+
+const (
+	WithArchive option = iota + 1
+	WithOutArchive
+
+	ErrConfig option = 1<<8 - 1
 )
 
 type Config struct {
 	zap.Config
-	ArchConf ArchiveConfig
+	ArchConf *ArchiveConfig
 	Stdout   bool // 是否在控制台输出
 }
 
@@ -34,61 +44,94 @@ type ArchiveConfig struct {
 }
 
 func (c *Config) build() (*zap.Logger, error) {
-	if !c.check() {
-		return nil, errors.New("config error")
+	switch c.check() {
+	case WithArchive:
+		c.buildArchLogger()
+		return c.Config.Build(c.wrapSyncOpts())
+	case WithOutArchive:
+		return c.Config.Build()
+	default:
+		return nil, errors.New("log config error")
 	}
-	c.buildArchLogger()
-	opts := c.wrapSync()
-
-	return c.Config.Build(opts)
 }
 
-func (c Config) check() bool {
+func (c *Config) check() option {
+	if c.ArchConf == nil || reflect.DeepEqual(*c.ArchConf, ArchiveConfig{}) {
+		return WithOutArchive
+	}
 	if c.ArchConf.LogFileDir == "" {
 		c.ArchConf.LogFileDir, _ = filepath.Abs(filepath.Dir(filepath.Join(".")))
 		c.ArchConf.LogFileDir += string(filepath.Separator) + "logs" + string(filepath.Separator)
 	}
 	c.ArchConf.LogFileDir = strings.TrimSuffix(c.ArchConf.LogFileDir, string(filepath.Separator))
-	return true
+	if c.ArchConf.DebugFileName != "" ||
+		c.ArchConf.InfoFileName != "" ||
+		c.ArchConf.WarnFileName != "" ||
+		c.ArchConf.ErrorFileName != "" {
+		c.ArchConf.DebugFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.DebugFileName, string(filepath.Separator)), string(filepath.Separator))
+		c.ArchConf.InfoFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.InfoFileName, string(filepath.Separator)), string(filepath.Separator))
+		c.ArchConf.WarnFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.WarnFileName, string(filepath.Separator)), string(filepath.Separator))
+		c.ArchConf.ErrorFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.ErrorFileName, string(filepath.Separator)), string(filepath.Separator))
+		return WithArchive
+	}
+	return ErrConfig
 }
 
 func (c *Config) buildArchLogger() {
-	c.ArchConf.errLog = c.ArchConf.getLumberjackLogger(c.ArchConf.ErrorFileName)
-	c.ArchConf.infoLog = c.ArchConf.getLumberjackLogger(c.ArchConf.InfoFileName)
-	c.ArchConf.debugLog = c.ArchConf.getLumberjackLogger(c.ArchConf.DebugFileName)
-	c.ArchConf.warnLog = c.ArchConf.getLumberjackLogger(c.ArchConf.WarnFileName)
+	if c.ArchConf.InfoFileName != "" {
+		c.ArchConf.buildInfoLog()
+	}
+	if c.ArchConf.DebugFileName != "" {
+		c.ArchConf.buildDebugLog()
+	}
+	if c.ArchConf.ErrorFileName != "" {
+		c.ArchConf.buildErrorLog()
+	}
+	if c.ArchConf.WarnFileName != "" {
+		c.ArchConf.buildWarnLog()
+	}
 }
 
-func (c *Config) wrapSync() zap.Option {
-	errPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+func (c *Config) wrapSyncOpts() zap.Option {
+	fileEncoder := zapcore.NewJSONEncoder(c.Config.EncoderConfig)
+	cores := make([]zapcore.Core, 0, 4)
+	errEnabler := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl == zapcore.ErrorLevel && zapcore.ErrorLevel-c.Config.Level.Level() > -1
 	})
-	warnPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+	warnEnabler := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl == zapcore.WarnLevel && zapcore.WarnLevel-c.Config.Level.Level() > -1
 	})
-	infoPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+	infoEnabler := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl == zapcore.InfoLevel && zapcore.InfoLevel-c.Config.Level.Level() > -1
 	})
-	debugPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+	debugEnabler := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl == zapcore.DebugLevel && zapcore.DebugLevel-c.Config.Level.Level() > -1
 	})
-
-	fileEncoder := zapcore.NewJSONEncoder(c.Config.EncoderConfig)
-	cores := []zapcore.Core{
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.errLog), errPriority),
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.warnLog), warnPriority),
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.infoLog), infoPriority),
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.debugLog), debugPriority),
+	if c.ArchConf.errLog != nil {
+		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.errLog), errEnabler))
 	}
 
-	c.Config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(c.Config.EncoderConfig)
+	if c.ArchConf.warnLog != nil {
+		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.warnLog), warnEnabler))
+	}
+
+	if c.ArchConf.infoLog != nil {
+		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.infoLog), infoEnabler))
+	}
+
+	if c.ArchConf.debugLog != nil {
+		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(c.ArchConf.debugLog), debugEnabler))
+	}
+
+	encoder := c.Config.EncoderConfig
+	encoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleEncoder := zapcore.NewConsoleEncoder(encoder)
 	if c.Stdout {
 		cores = append(cores, []zapcore.Core{
-			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stderr), errPriority),
-			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stdout), warnPriority),
-			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stdout), infoPriority),
-			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stdout), debugPriority),
+			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stderr), errEnabler),
+			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stderr), warnEnabler),
+			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stderr), infoEnabler),
+			zapcore.NewCore(consoleEncoder, zapcore.Lock(os.Stderr), debugEnabler),
 		}...)
 	}
 	return zap.WrapCore(func(c zapcore.Core) zapcore.Core {
@@ -96,11 +139,61 @@ func (c *Config) wrapSync() zap.Option {
 	})
 }
 
-func (arch ArchiveConfig) getLumberjackLogger(name string) *lumberjack.Logger {
-	return &lumberjack.Logger{
-		Filename:   arch.LogFileDir + string(filepath.Separator) + name,
+func (c *Config) SetLevel(level string) {
+	var lvl zapcore.Level
+	switch level {
+	case "debug", "Debug", "DEBUG":
+		lvl = zapcore.DebugLevel
+	case "info", "Info", "INFO":
+		lvl = zapcore.InfoLevel
+	case "warn", "Warn", "WARN":
+		lvl = zapcore.WarnLevel
+	case "error", "Error", "ERROR":
+		lvl = zapcore.ErrorLevel
+	case "panic", "Panic", "PANIC":
+		lvl = zapcore.PanicLevel
+	case "fatal", "Fatal", "FATAL":
+		lvl = zapcore.FatalLevel
+	default:
+		lvl = zapcore.InfoLevel
+	}
+	c.Config.Level.SetLevel(lvl)
+}
+
+func (arch *ArchiveConfig) buildWarnLog() {
+	arch.warnLog = &lumberjack.Logger{
+		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.WarnFileName,
 		MaxSize:    arch.MaxSize,
-		MaxAge:     arch.MaxAge,
+		MaxBackups: arch.MaxBackups,
+		LocalTime:  true,
+		Compress:   arch.Compress,
+	}
+}
+
+func (arch *ArchiveConfig) buildInfoLog() {
+	arch.infoLog = &lumberjack.Logger{
+		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.InfoFileName,
+		MaxSize:    arch.MaxSize,
+		MaxBackups: arch.MaxBackups,
+		LocalTime:  true,
+		Compress:   arch.Compress,
+	}
+}
+
+func (arch *ArchiveConfig) buildDebugLog() {
+	arch.debugLog = &lumberjack.Logger{
+		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.DebugFileName,
+		MaxSize:    arch.MaxSize,
+		MaxBackups: arch.MaxBackups,
+		LocalTime:  true,
+		Compress:   arch.Compress,
+	}
+}
+
+func (arch *ArchiveConfig) buildErrorLog() {
+	arch.errLog = &lumberjack.Logger{
+		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.ErrorFileName,
+		MaxSize:    arch.MaxSize,
 		MaxBackups: arch.MaxBackups,
 		LocalTime:  true,
 		Compress:   arch.Compress,
@@ -129,44 +222,14 @@ func DefaultZapEncoderConfig() zapcore.EncoderConfig {
 		StacktraceKey:  "stacktrace",
 		LineEnding:     zapcore.DefaultLineEnding,
 		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.EpochTimeEncoder,
+		EncodeTime:     zapcore.ISO8601TimeEncoder,
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 }
 
-func (arch *ArchiveConfig) StopArchive(kindName string) error {
-	switch strings.ToLower(kindName) {
-	case "info", "information":
-		return arch.infoLog.Close()
-	case "err", "error", "errors":
-		return arch.errLog.Close()
-	case "debug":
-		return arch.debugLog.Close()
-	case "warn", "warning":
-		return arch.warnLog.Close()
-	}
-
-	return errors.New("invalid kind close")
-}
-
-func (arch *ArchiveConfig) Rotate(kindName string) error {
-	switch strings.ToLower(kindName) {
-	case "info", "information":
-		return arch.infoLog.Rotate()
-	case "err", "error", "errors":
-		return arch.errLog.Rotate()
-	case "debug":
-		return arch.debugLog.Rotate()
-	case "warn", "warning":
-		return arch.warnLog.Rotate()
-	}
-
-	return errors.New("invalid kind rotate")
-}
-
-func DefaultArchiveConfig() ArchiveConfig {
-	return ArchiveConfig{
+func DefaultArchiveConfig() *ArchiveConfig {
+	return &ArchiveConfig{
 		LogFileDir:    "",
 		ErrorFileName: "error.log",
 		WarnFileName:  "warn.log",

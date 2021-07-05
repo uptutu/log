@@ -35,5 +35,5 @@ func Fatal(msg string, fields ...zap.Field) {
 }
 
 func wrappedLog() *zap.Logger {
-	return logger.WithOptions(zap.AddCallerSkip(1))
+	return zap.L().WithOptions(zap.AddCallerSkip(1))
 }
