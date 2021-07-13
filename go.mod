@@ -1,4 +1,4 @@
-module github.uptutu/log
+module github.com/uptutu/log
 
 go 1.16
 
