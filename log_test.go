@@ -7,6 +7,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	assert.NotEqual(t, zap.L(), zap.NewNop())
 	assert.Equal(t, New(), zap.L())
 }
 

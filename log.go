@@ -49,3 +49,7 @@ func WrapFields(m map[string]string) *zap.Logger {
 
 	return zap.L().WithOptions(fields...)
 }
+
+func init() {
+	NewConsoleLogger()
+}
