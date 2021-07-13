@@ -14,6 +14,10 @@ func TestDefaultArchiveConfig(t *testing.T) {
 	assert.NotNil(t, DefaultArchiveConfig().ErrorFileName)
 }
 
+func TestNewDefaultWithoutArchiveConfig(t *testing.T) {
+	assert.Nil(t, NewDefaultWithoutArchiveConfig().ArchConf)
+}
+
 func TestDefaultZapEncoderConfig(t *testing.T) {
 	assert.NotNil(t, DefaultZapEncoderConfig())
 	assert.Equal(t, "content", DefaultZapEncoderConfig().MessageKey)

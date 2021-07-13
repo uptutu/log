@@ -211,6 +211,15 @@ func NewDefaultConfig() Config {
 	}
 }
 
+func NewDefaultWithoutArchiveConfig() Config {
+	zapConf := zap.NewDevelopmentConfig()
+	zapConf.EncoderConfig = DefaultZapEncoderConfig()
+	return Config{
+		Config: zapConf,
+		Stdout: true,
+	}
+}
+
 func DefaultZapEncoderConfig() zapcore.EncoderConfig {
 	return zapcore.EncoderConfig{
 		TimeKey:        "timestamp",
