@@ -42,6 +42,10 @@ func Set(log *zap.Logger) {
 	zap.ReplaceGlobals(log)
 }
 
+func SetLogFields(m map[string]string) {
+	Set(WrapFields(m))
+}
+
 func WrapFields(m map[string]string) *zap.Logger {
 	fields := make([]zap.Option, 0, len(m))
 	for k, v := range m {

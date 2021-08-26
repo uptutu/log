@@ -27,3 +27,11 @@ func TestSet(t *testing.T) {
 	Set(log)
 	assert.Equal(t, zap.L(), log)
 }
+
+func TestSetLogFields(t *testing.T) {
+	fields := map[string]string{
+		"source": "test",
+	}
+	SetLogFields(fields)
+	Info("try")
+}
