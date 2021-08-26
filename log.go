@@ -2,6 +2,7 @@ package log
 
 import (
 	"go.uber.org/zap"
+	"reflect"
 )
 
 func New() *zap.Logger {
@@ -51,5 +52,7 @@ func WrapFields(m map[string]string) *zap.Logger {
 }
 
 func init() {
-	NewConsoleLogger()
+	if reflect.DeepEqual(zap.L(), zap.NewNop()) {
+		NewConsoleLogger()
+	}
 }
