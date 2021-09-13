@@ -20,10 +20,12 @@ const (
 	ErrConfig option = 1<<8 - 1
 )
 
+var separator = string(filepath.Separator)
+
 type Config struct {
 	zap.Config
 	ArchConf *ArchiveConfig
-	Stdout   bool // 是否在控制台输出
+	Stdout   bool
 }
 
 // ArchiveConfig 日志文件归档配置
@@ -61,17 +63,17 @@ func (c *Config) check() option {
 	}
 	if c.ArchConf.LogFileDir == "" {
 		c.ArchConf.LogFileDir, _ = filepath.Abs(filepath.Dir(filepath.Join(".")))
-		c.ArchConf.LogFileDir += string(filepath.Separator) + "logs" + string(filepath.Separator)
+		c.ArchConf.LogFileDir += separator + "logs" + separator
 	}
-	c.ArchConf.LogFileDir = strings.TrimSuffix(c.ArchConf.LogFileDir, string(filepath.Separator))
+	c.ArchConf.LogFileDir = strings.TrimSuffix(c.ArchConf.LogFileDir, separator)
 	if c.ArchConf.DebugFileName != "" ||
 		c.ArchConf.InfoFileName != "" ||
 		c.ArchConf.WarnFileName != "" ||
 		c.ArchConf.ErrorFileName != "" {
-		c.ArchConf.DebugFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.DebugFileName, string(filepath.Separator)), string(filepath.Separator))
-		c.ArchConf.InfoFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.InfoFileName, string(filepath.Separator)), string(filepath.Separator))
-		c.ArchConf.WarnFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.WarnFileName, string(filepath.Separator)), string(filepath.Separator))
-		c.ArchConf.ErrorFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.ErrorFileName, string(filepath.Separator)), string(filepath.Separator))
+		c.ArchConf.DebugFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.DebugFileName, separator), separator)
+		c.ArchConf.InfoFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.InfoFileName, separator), separator)
+		c.ArchConf.WarnFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.WarnFileName, separator), separator)
+		c.ArchConf.ErrorFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.ErrorFileName, separator), separator)
 		return WithArchive
 	}
 	return ErrConfig

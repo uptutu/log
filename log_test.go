@@ -8,13 +8,13 @@ import (
 
 func TestNew(t *testing.T) {
 	assert.NotEqual(t, zap.L(), zap.NewNop())
-	assert.Equal(t, New(), zap.L())
+	assert.NotNil(t, New())
 }
 
 func TestNewLogger(t *testing.T) {
 	conf := NewDefaultConfig()
 	conf.ArchConf = nil
-	assert.Equal(t, NewLogger(conf), zap.L())
+	assert.NotNil(t, NewLogger(conf))
 }
 
 func TestGet(t *testing.T) {
@@ -32,6 +32,6 @@ func TestSetLogFields(t *testing.T) {
 	fields := map[string]string{
 		"source": "test",
 	}
-	SetLogFields(fields)
+	SetLogWithFields(fields)
 	Info("try")
 }

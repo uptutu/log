@@ -5,13 +5,18 @@ import (
 	"reflect"
 )
 
+func init() {
+	if reflect.DeepEqual(zap.L(), zap.NewNop()) {
+		Set(NewConsoleLogger())
+	}
+}
+
 func New() *zap.Logger {
 	config := NewDefaultConfig()
 	logger, err := config.build()
 	if err != nil {
 		panic(err)
 	}
-	zap.ReplaceGlobals(logger)
 	return logger
 }
 
@@ -21,7 +26,6 @@ func NewConsoleLogger() *zap.Logger {
 	if err != nil {
 		panic(err)
 	}
-	zap.ReplaceGlobals(logger)
 	return logger
 }
 
@@ -30,7 +34,6 @@ func NewLogger(conf Config) *zap.Logger {
 	if err != nil {
 		panic(err)
 	}
-	zap.ReplaceGlobals(logger)
 	return logger
 }
 
@@ -42,7 +45,7 @@ func Set(log *zap.Logger) {
 	zap.ReplaceGlobals(log)
 }
 
-func SetLogFields(m map[string]string) {
+func SetLogWithFields(m map[string]string) {
 	Set(WrapFields(m))
 }
 
@@ -53,10 +56,4 @@ func WrapFields(m map[string]string) *zap.Logger {
 	}
 
 	return zap.L().WithOptions(fields...)
-}
-
-func init() {
-	if reflect.DeepEqual(zap.L(), zap.NewNop()) {
-		NewConsoleLogger()
-	}
 }
