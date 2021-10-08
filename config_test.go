@@ -11,7 +11,7 @@ import (
 func TestDefaultArchiveConfig(t *testing.T) {
 	assert.NotNil(t, DefaultArchiveConfig())
 	assert.Nil(t, DefaultArchiveConfig().errLog)
-	assert.NotNil(t, DefaultArchiveConfig().ErrorFileName)
+	assert.NotNil(t, DefaultArchiveConfig().ErrorFile)
 }
 
 func TestNewDefaultWithoutArchiveConfig(t *testing.T) {
@@ -40,29 +40,29 @@ func TestConfigCheckWithArchConfLogFileDirIsEmptyString(t *testing.T) {
 	assert.Equal(t, WithArchive, conf.check())
 	wd, err := filepath.Abs(filepath.Dir(filepath.Join(".")))
 	assert.Nil(t, err)
-	assert.Equal(t, wd+"/logs", conf.ArchConf.LogFileDir)
+	assert.Equal(t, wd+"/logs", conf.ArchConf.Dir)
 }
 
 func TestConfigCheckWithArchConfLogFileDir(t *testing.T) {
 	ac := DefaultArchiveConfig()
-	ac.LogFileDir = "/test/logs"
+	ac.Dir = "/test/logs"
 	conf := Config{ArchConf: ac}
 	assert.Equal(t, WithArchive, conf.check())
-	assert.Equal(t, "/test/logs", conf.ArchConf.LogFileDir)
+	assert.Equal(t, "/test/logs", conf.ArchConf.Dir)
 
-	conf.ArchConf.LogFileDir = "test/logs/"
+	conf.ArchConf.Dir = "test/logs/"
 	assert.Equal(t, WithArchive, conf.check())
-	assert.Equal(t, "test/logs", conf.ArchConf.LogFileDir)
+	assert.Equal(t, "test/logs", conf.ArchConf.Dir)
 }
 
 func TestConfigCheckWithErrConfig(t *testing.T) {
 	ac := ArchiveConfig{
-		LogFileDir:    "",
-		ErrorFileName: "",
-		WarnFileName:  "",
-		InfoFileName:  "",
-		DebugFileName: "",
-		MaxSize:       30,
+		Dir:       "",
+		ErrorFile: "",
+		WarnFile:  "",
+		InfoFile:  "",
+		DebugFile: "",
+		MaxSize:   30,
 	}
 	conf := Config{ArchConf: &ac}
 	assert.Equal(t, ErrConfig, conf.check())
@@ -70,13 +70,13 @@ func TestConfigCheckWithErrConfig(t *testing.T) {
 
 func TestConfigCheckWithErrFileNameConfig(t *testing.T) {
 	ac := ArchiveConfig{
-		LogFileDir:    "",
-		ErrorFileName: "/logs.log/",
-		MaxSize:       30,
+		Dir:       "",
+		ErrorFile: "/logs.log/",
+		MaxSize:   30,
 	}
 	conf := Config{ArchConf: &ac}
 	assert.Equal(t, WithArchive, conf.check())
-	assert.Equal(t, "logs.log", conf.ArchConf.ErrorFileName)
+	assert.Equal(t, "logs.log", conf.ArchConf.ErrorFile)
 }
 
 func TestConfigBuildArchLogger(t *testing.T) {

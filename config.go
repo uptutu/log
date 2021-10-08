@@ -16,9 +16,8 @@ type option uint8
 const (
 	WithArchive option = iota + 1
 	WithOutArchive
-
-	ErrConfig option = 1<<8 - 1
 )
+const ErrConfig option = 1<<8 - 1
 
 var separator = string(filepath.Separator)
 
@@ -30,19 +29,19 @@ type Config struct {
 
 // ArchiveConfig 日志文件归档配置
 type ArchiveConfig struct {
-	LogFileDir    string //文件保存目录
-	ErrorFileName string
-	WarnFileName  string
-	InfoFileName  string
-	DebugFileName string
-	infoLog       *lumberjack.Logger
-	errLog        *lumberjack.Logger
-	warnLog       *lumberjack.Logger
-	debugLog      *lumberjack.Logger
-	MaxSize       int  // 按大小切割（M）
-	MaxBackups    int  // 默认备份数
-	MaxAge        int  // 保存的最大天数
-	Compress      bool // 是否对日志进行压缩
+	Dir        string
+	ErrorFile  string
+	WarnFile   string
+	InfoFile   string
+	DebugFile  string
+	infoLog    *lumberjack.Logger
+	errLog     *lumberjack.Logger
+	warnLog    *lumberjack.Logger
+	debugLog   *lumberjack.Logger
+	MaxSize    int  // 按大小切割（M）
+	MaxBackups int  // 默认备份数
+	MaxAge     int  // 保存的最大天数
+	Compress   bool // 是否对日志进行压缩
 }
 
 func (c *Config) build() (*zap.Logger, error) {
@@ -61,35 +60,35 @@ func (c *Config) check() option {
 	if c.ArchConf == nil || reflect.DeepEqual(*c.ArchConf, ArchiveConfig{}) {
 		return WithOutArchive
 	}
-	if c.ArchConf.LogFileDir == "" {
-		c.ArchConf.LogFileDir, _ = filepath.Abs(filepath.Dir(filepath.Join(".")))
-		c.ArchConf.LogFileDir += separator + "logs" + separator
+	if c.ArchConf.Dir == "" {
+		c.ArchConf.Dir, _ = filepath.Abs(filepath.Dir(filepath.Join(".")))
+		c.ArchConf.Dir += separator + "logs" + separator
 	}
-	c.ArchConf.LogFileDir = strings.TrimSuffix(c.ArchConf.LogFileDir, separator)
-	if c.ArchConf.DebugFileName != "" ||
-		c.ArchConf.InfoFileName != "" ||
-		c.ArchConf.WarnFileName != "" ||
-		c.ArchConf.ErrorFileName != "" {
-		c.ArchConf.DebugFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.DebugFileName, separator), separator)
-		c.ArchConf.InfoFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.InfoFileName, separator), separator)
-		c.ArchConf.WarnFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.WarnFileName, separator), separator)
-		c.ArchConf.ErrorFileName = strings.TrimSuffix(strings.Trim(c.ArchConf.ErrorFileName, separator), separator)
+	c.ArchConf.Dir = strings.TrimSuffix(c.ArchConf.Dir, separator)
+	if c.ArchConf.DebugFile != "" ||
+		c.ArchConf.InfoFile != "" ||
+		c.ArchConf.WarnFile != "" ||
+		c.ArchConf.ErrorFile != "" {
+		c.ArchConf.DebugFile = strings.TrimSuffix(strings.Trim(c.ArchConf.DebugFile, separator), separator)
+		c.ArchConf.InfoFile = strings.TrimSuffix(strings.Trim(c.ArchConf.InfoFile, separator), separator)
+		c.ArchConf.WarnFile = strings.TrimSuffix(strings.Trim(c.ArchConf.WarnFile, separator), separator)
+		c.ArchConf.ErrorFile = strings.TrimSuffix(strings.Trim(c.ArchConf.ErrorFile, separator), separator)
 		return WithArchive
 	}
 	return ErrConfig
 }
 
 func (c *Config) buildArchLogger() {
-	if c.ArchConf.InfoFileName != "" {
+	if c.ArchConf.InfoFile != "" {
 		c.ArchConf.buildInfoLog()
 	}
-	if c.ArchConf.DebugFileName != "" {
+	if c.ArchConf.DebugFile != "" {
 		c.ArchConf.buildDebugLog()
 	}
-	if c.ArchConf.ErrorFileName != "" {
+	if c.ArchConf.ErrorFile != "" {
 		c.ArchConf.buildErrorLog()
 	}
-	if c.ArchConf.WarnFileName != "" {
+	if c.ArchConf.WarnFile != "" {
 		c.ArchConf.buildWarnLog()
 	}
 }
@@ -164,7 +163,7 @@ func (c *Config) SetLevel(level string) {
 
 func (arch *ArchiveConfig) buildWarnLog() {
 	arch.warnLog = &lumberjack.Logger{
-		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.WarnFileName,
+		Filename:   arch.Dir + string(filepath.Separator) + arch.WarnFile,
 		MaxSize:    arch.MaxSize,
 		MaxBackups: arch.MaxBackups,
 		LocalTime:  true,
@@ -174,7 +173,7 @@ func (arch *ArchiveConfig) buildWarnLog() {
 
 func (arch *ArchiveConfig) buildInfoLog() {
 	arch.infoLog = &lumberjack.Logger{
-		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.InfoFileName,
+		Filename:   arch.Dir + string(filepath.Separator) + arch.InfoFile,
 		MaxSize:    arch.MaxSize,
 		MaxBackups: arch.MaxBackups,
 		LocalTime:  true,
@@ -184,7 +183,7 @@ func (arch *ArchiveConfig) buildInfoLog() {
 
 func (arch *ArchiveConfig) buildDebugLog() {
 	arch.debugLog = &lumberjack.Logger{
-		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.DebugFileName,
+		Filename:   arch.Dir + string(filepath.Separator) + arch.DebugFile,
 		MaxSize:    arch.MaxSize,
 		MaxBackups: arch.MaxBackups,
 		LocalTime:  true,
@@ -194,7 +193,7 @@ func (arch *ArchiveConfig) buildDebugLog() {
 
 func (arch *ArchiveConfig) buildErrorLog() {
 	arch.errLog = &lumberjack.Logger{
-		Filename:   arch.LogFileDir + string(filepath.Separator) + arch.ErrorFileName,
+		Filename:   arch.Dir + string(filepath.Separator) + arch.ErrorFile,
 		MaxSize:    arch.MaxSize,
 		MaxBackups: arch.MaxBackups,
 		LocalTime:  true,
@@ -241,14 +240,14 @@ func DefaultZapEncoderConfig() zapcore.EncoderConfig {
 
 func DefaultArchiveConfig() *ArchiveConfig {
 	return &ArchiveConfig{
-		LogFileDir:    "",
-		ErrorFileName: "error.log",
-		WarnFileName:  "warn.log",
-		InfoFileName:  "info.log",
-		DebugFileName: "debug.log",
-		MaxSize:       11,
-		MaxBackups:    10,
-		MaxAge:        30,
-		Compress:      false,
+		Dir:        "",
+		ErrorFile:  "error.log",
+		WarnFile:   "warn.log",
+		InfoFile:   "info.log",
+		DebugFile:  "debug.log",
+		MaxSize:    11,
+		MaxBackups: 10,
+		MaxAge:     30,
+		Compress:   false,
 	}
 }

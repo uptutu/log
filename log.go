@@ -11,7 +11,11 @@ func init() {
 	}
 }
 
-func New() *zap.Logger {
+func New(opts ...zap.Option) *zap.Logger {
+	if zap.L() != nil && len(opts) != 0 {
+		logger := zap.L().WithOptions(opts...)
+		return logger
+	}
 	config := NewDefaultConfig()
 	logger, err := config.build()
 	if err != nil {
